@@ -47,7 +47,7 @@ const App = {
     this.updateStatusBar();
   },
   seedDemo(){
-    qs('#cfg-backend').value = 'https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec';
+    qs('#cfg-backend').value = 'https://script.google.com/macros/s/REPLACE/exec';
     qs('#cfg-folder').value = 'REPLACE_FOLDER_ID';
     qs('#cfg-sheet').value = 'REPLACE_SHEET_ID';
   },
@@ -75,7 +75,6 @@ const App = {
     const setId = 'set_' + Date.now().toString(36);
     qs('#btn-upload').disabled = true; qs('#progress').textContent = 'กำลังเตรียมไฟล์...';
 
-    // Read files as dataURL
     const files = [];
     const readFile = f => new Promise((res,rej)=>{
       const fr = new FileReader(); fr.onload = ()=>res({name:f.name, type:f.type, dataURL: fr.result}); fr.onerror=rej; fr.readAsDataURL(f);
@@ -83,15 +82,14 @@ const App = {
     for(const f of imgs) files.push(await readFile(f));
     for(const f of vids) files.push(await readFile(f));
 
-    const payload = {
-      mode: 'upload',
-      sheetId, folderId,
-      setId, title, message,
-      files
-    };
+    const payload = { mode:'upload', sheetId, folderId, setId, title, message, files };
 
     const send = async () => {
-      const r = await fetch(backend, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      const r = await fetch(backend, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload)
+      });
       if(!r.ok) throw new Error('HTTP '+r.status);
       return r.json();
     };
@@ -101,12 +99,9 @@ const App = {
       const out = await send();
       this.toast('บันทึกสำเร็จ ✔');
       this.resetForm();
-      // Jump to view page
       this.show('sets');
       await this.refreshSets();
-      // Optionally scroll to the new set
     }catch(err){
-      // Queue for retry
       this.state.queue.push(payload);
       localStorage.setItem('queue', JSON.stringify(this.state.queue));
       this.toast('ออฟไลน์/ผิดพลาด: เก็บเข้าคิวไว้แล้ว');
@@ -129,7 +124,11 @@ const App = {
     const left = [];
     for(const payload of q){
       try{
-        await fetch(backend, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        await fetch(backend, {
+          method:'POST',
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
       }catch(e){
         left.push(payload);
       }
