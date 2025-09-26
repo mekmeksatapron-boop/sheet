@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PWA: เก็บรูป/ข้อความเป็นชุด</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0ea5e9">
+  <link rel="icon" href="./icons/icon-192.png">
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto; background:#f7fafc; color:#111827; margin:0}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;z-index:10}
+    header h1{font-size:18px;margin:0}
+    .pill{font-size:12px;background:#e0f2fe;color:#0369a1;border-radius:999px;padding:4px 10px}
+    main{max-width:960px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin:12px 0; box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+    .row{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:800px){.row{grid-template-columns:1fr 1fr}}
+    label{font-weight:600;font-size:14px}
+    input[type="text"], textarea, input[type="file"]{
+      width:100%;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font-size:14px;background:#fff
+    }
+    textarea{min-height:110px;resize:vertical}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:#0ea5e9;color:#fff;font-weight:700;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-outline{background:#fff;color:#0ea5e9;border:1px solid #0ea5e9}
+    .muted{color:#6b7280;font-size:12px}
+    .tabs{display:flex;gap:8px; margin:8px 0 0}
+    .tab{flex:1;text-align:center;padding:10px;border:1px solid #e5e7eb;border-bottom:none;border-radius:12px 12px 0 0;background:#f8fafc;cursor:pointer}
+    .tab.active{background:#fff;border-bottom:1px solid #fff;font-weight:700}
+    .hidden{display:none !important}
+    .set-card{display:grid; gap:10px}
+    .media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px}
+    .media{border:1px dashed #cbd5e1;border-radius:12px;padding:10px; background:#fafafa}
+    .copy-row{display:flex; gap:8px; flex-wrap:wrap}
+    .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none}
+    .toast.show{opacity:1}
+    footer{height:64px}
+    nav.bottom{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #e5e7eb;display:grid;grid-template-columns:repeat(3,1fr)}
+    nav.bottom button{padding:10px 6px;border:0;background:#fff}
+    nav.bottom .active{color:#0ea5e9;font-weight:700}
+    .badge{font-size:11px; background:#eef2ff; color:#3730a3; padding:2px 8px; border-radius:999px}
+    .hr{height:1px;background:#e5e7eb;margin:6px 0}
+    .small{font-size:12px}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>คลังสื่อเป็นชุด (PWA)</h1>
+    <span class="pill">Sheets + Drive</span>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <div id="tab-create" class="tab active" onclick="App.show('create')">บันทึกชุดใหม่</div>
+      <div id="tab-sets" class="tab" onclick="App.show('sets')">ชุดทั้งหมด</div>
+      <div id="tab-settings" class="tab" onclick="App.show('settings')">ตั้งค่า</div>
+    </div>
+
+    <!-- Create -->
+    <section id="view-create" class="card">
+      <div class="row">
+        <div class="card">
+          <label>ชื่อชุด (เช่น: งานโพสต์ 26/09)</label>
+          <input id="title" type="text" placeholder="ตั้งชื่อชุด">
+          <div class="hr"></div>
+          <label>ข้อความ (caption / note)</label>
+          <textarea id="message" placeholder="พิมพ์ข้อความ..."></textarea>
+          <div class="hr"></div>
+          <label>รูปภาพ (เลือกหลายรูปได้)</label>
+          <input id="images" type="file" accept="image/*" multiple>
+          <div class="hr"></div>
+          <label>วิดีโอ (เลือกหลายไฟล์ได้)</label>
+          <input id="videos" type="file" accept="video/*" multiple>
+          <div class="hr"></div>
+          <button class="btn" id="btn-upload" onclick="App.upload()">อัพโหลดและบันทึกชุด</button>
+          <span id="progress" class="muted"></span>
+          <div class="small muted">ออฟไลน์ได้: แอพจะเก็บคิวไว้และส่งอัตโนมัติเมื่อออนไลน์</div>
+        </div>
+        <div class="card">
+          <div><b>สถานะ</b></div>
+          <div class="small">Backend URL: <span id="backend-url" class="mono badge"></span></div>
+          <div class="small">Folder ID: <span id="folder-id" class="mono badge"></span></div>
+          <div class="small">Sheet ID: <span id="sheet-id" class="mono badge"></span></div>
+          <div class="hr"></div>
+          <div class="small muted">ตั้งค่าได้ที่แท็บ “ตั้งค่า”</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sets -->
+    <section id="view-sets" class="card hidden">
+      <div class="copy-row" style="margin-bottom:8px">
+        <button class="btn" onclick="App.refreshSets()">รีเฟรช</button>
+        <button class="btn btn-outline" onclick="App.exportLocal()">สำรองข้อมูลคิวออฟไลน์</button>
+      </div>
+      <div id="sets"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="card hidden">
+      <div class="set-card">
+        <label>Apps Script Web App URL</label>
+        <input id="cfg-backend" type="text" placeholder="https://script.google.com/macros/s/XXX/exec">
+        <label>Google Drive Folder ID (เก็บไฟล์)</label>
+        <input id="cfg-folder" type="text" placeholder="เช่น: 1a2B3c...">
+        <label>Google Sheet ID (เมทาดาทา)</label>
+        <input id="cfg-sheet" type="text" placeholder="เช่น: 1a2B3c...">
+        <div class="copy-row">
+          <button class="btn" onclick="App.saveConfig()">บันทึก</button>
+          <button class="btn btn-outline" onclick="App.seedDemo()">ใส่ค่าทดสอบ</button>
+        </div>
+        <div class="muted small">หลังบันทึก ลองกลับไปแท็บ “ชุดทั้งหมด” แล้วกด “รีเฟรช”</div>
+      </div>
+    </section>
+  </main>
+
+  <footer></footer>
+  <nav class="bottom">
+    <button id="nav-create" class="active" onclick="App.show('create')">สร้าง</button>
+    <button id="nav-sets" onclick="App.show('sets')">ชุด</button>
+    <button id="nav-settings" onclick="App.show('settings')">ตั้งค่า</button>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="./app.js"></script>
+  <script>
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
+  </script>
+</body>
+</html>
